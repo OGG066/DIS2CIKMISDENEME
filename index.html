@@ -284,6 +284,12 @@
     padding:26px 24px;margin:24px 0;cursor:pointer;min-height:210px;transition:.15s}
   .flashcard:hover{border-color:var(--border-2)}
   .flashcard .tapcue{color:var(--muted-2);font-size:.92rem;margin:26px 0 6px;text-align:center;font-style:italic}
+
+  /* ---------- soru ara ---------- */
+  .searchbox{width:100%;padding:13px 16px;font-size:1rem;border:1.5px solid var(--border-2);
+    border-radius:var(--r-sm);background:var(--surface);color:var(--ink);font-family:inherit}
+  .searchbox:focus{outline:none;border-color:var(--petrol-3);box-shadow:0 0 0 3px rgba(44,110,112,.12)}
+  #searchResults .rcard{margin:10px 0}
 </style>
 </head>
 <body>
@@ -405,6 +411,10 @@ function renderHome(){
       <button class="minibtn" onclick="go('cards-setup')">
         <span class="mt">Flashcards →</span>
         <span class="ms">ders ders ayrılmış · ${ALLCARDS.length} kart</span>
+      </button>
+      <button class="minibtn" onclick="go('search')">
+        <span class="mt">Soru Ara →</span>
+        <span class="ms">kelimeye göre tüm bankada ara</span>
       </button>
     </div>
 
@@ -925,6 +935,50 @@ function renderCards(){
 function flipCard(){ S.flip=!S.flip; renderCards(); }
 function cardsNav(d){ const n=S.i+d; if(n<0||n>=S.qs.length)return; S.i=n; S.flip=false; renderCards(); window.scrollTo({top:0,behavior:'auto'}); }
 
+/* ============ SORU ARA ============ */
+function searchHits(query){
+  const t=(query||'').trim().toLowerCase();
+  if(t.length<2)return [];
+  const terms=t.split(/\s+/);
+  return ALLCARDS.filter(q=>{
+    const hay=((q.q||'')+' '+(q.s||'')+' '+(q.o?Object.values(q.o).join(' '):'')+' '+(q.a||'')+' '+(q.e||'')+' '+(q.note||'')).toLowerCase();
+    return terms.every(w=>hay.includes(w));
+  });
+}
+function doSearch(v){
+  S.query=v;
+  const res=document.querySelector('#searchResults');
+  const cnt=document.querySelector('#searchCount');
+  if(!res)return;
+  const t=(v||'').trim();
+  if(t.length<2){ if(cnt)cnt.textContent='En az 2 harf yaz.'; res.innerHTML=''; return; }
+  const hits=searchHits(v);
+  if(cnt)cnt.innerHTML='<b>'+hits.length+'</b> sonuç';
+  if(!hits.length){ res.innerHTML='<p class="count-note" style="margin-top:14px">Eşleşen soru yok.</p>'; return; }
+  res.innerHTML=hits.slice(0,200).map(q=>{
+    const ans = q.a || (q.o?`${q.c}) ${q.o[q.c]}`:'');
+    const e=q.e?`<div class="rexp"><b>Püf:</b> ${esc(q.e)}</div>`:'';
+    return `<div class="rcard">
+      <p class="rq"><span class="mono" style="color:var(--muted)">[${q.k}·${q.n}] ${esc(q.s)} · ${kurulName(q.k)}</span><br>${esc(q.q)}</p>
+      <div class="answerbox" style="margin-top:8px"><p class="et">Cevap</p><p>${esc(ans)}</p></div>${e}</div>`;
+  }).join('') + (hits.length>200?'<p class="count-note" style="margin-top:10px">İlk 200 gösteriliyor; aramayı daralt.</p>':'');
+}
+function renderSearch(){
+  if(S.query===undefined)S.query='';
+  app.innerHTML=`
+  <div class="wrap">
+    <div class="panel">
+      <h2>Soru Ara</h2>
+      <p class="lead">Kelimeye göre tüm soru bankasında (dokuz kurul + bu sene final) ara. Soru metni, şıklar, doğru cevap ve açıklamada eşleşir.</p>
+      <input id="searchInput" class="searchbox" type="search" placeholder="Örn: parotis, insülin, ICDAS, nekroz..." value="${esc(S.query)}" oninput="doSearch(this.value)" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div id="searchCount" class="count-note" style="margin-top:12px"></div>
+      <div id="searchResults"></div>
+    </div>
+  </div>`;
+  const inp=document.querySelector('#searchInput'); if(inp){ inp.focus(); }
+  doSearch(S.query);
+}
+
 /* ---- dispatch ---- */
 function render(){
   switch(S.screen){
@@ -932,6 +986,7 @@ function render(){
     case 'final':return renderFinal();
     case 'cards-setup':return renderCardsSetup();
     case 'cards':return renderCards();
+    case 'search':return renderSearch();
     case 'study-setup':return renderStudySetup();
     case 'study':return renderStudy();
     case 'sim-setup':return renderSimSetup();
