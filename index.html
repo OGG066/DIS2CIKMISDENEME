@@ -304,7 +304,7 @@
 </div>
 <div id="app"></div>
 <div class="footer wrap">
-  <b>538 soru</b> · 9 kurul · ayrıca <b>Bu Sene Final Soruları</b> bölümü · yalnızca hatırlama belgelerinden derlendi · cevaplar işaretli şıklardan doğrulandı
+  <b id="footTotal">538</b> soru · 9 kurul + <b>Bu Sene Final</b> bölümü · yalnızca hatırlama belgelerinden derlendi · cevaplar işaretli şıklardan doğrulandı
 </div>
 
 <script>
@@ -996,6 +996,7 @@ function render(){
   }
 }
 render();
+(function(){var ft=document.querySelector('#footTotal'); if(ft) ft.textContent=(DATA.length+FINAL2024.length);})();
 </script>
 </body>
 </html>
