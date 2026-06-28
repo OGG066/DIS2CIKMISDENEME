@@ -1003,7 +1003,8 @@ function renderQuizRes(){
     if(p===undefined)blank++; else if(p===q.c){correct++;sub.c++;} else wrong++;
   });
   const total=correct+wrong+blank;
-  const pct=total?Math.round(correct/total*100):0;
+  const answered=correct+wrong;
+  const pct=answered?Math.round(correct/answered*100):0;
   if(S.review===undefined)S.review='wrong';
 
   let subs=Object.keys(bySub).sort((a,b)=>{const ia=SUBJECT_ORDER.indexOf(a),ib=SUBJECT_ORDER.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);});
@@ -1032,7 +1033,7 @@ function renderQuizRes(){
   <div class="wrap">
     <div class="resulthero">
       <div class="big">${correct}<small> / ${total} doğru</small></div>
-      <div class="pts">%${pct} · ${esc(label||'Test')}</div>
+      <div class="pts">%${pct} başarı · ${answered}/${total} çözüldü · ${esc(label||'Test')}</div>
       <div class="meta">
         <div><b>${correct}</b><span>doğru</span></div>
         <div><b>${wrong}</b><span>yanlış</span></div>
