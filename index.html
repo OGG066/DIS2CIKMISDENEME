@@ -290,6 +290,10 @@
     border-radius:var(--r-sm);background:var(--surface);color:var(--ink);font-family:inherit}
   .searchbox:focus{outline:none;border-color:var(--petrol-3);box-shadow:0 0 0 3px rgba(44,110,112,.12)}
   #searchResults .rcard{margin:10px 0}
+
+  /* ---------- bitir butonu (runtop) ---------- */
+  .ghostbtn.endq{background:var(--gold);color:#241a05;border-color:var(--gold);flex:none;font-weight:700}
+  .ghostbtn.endq:hover{background:#d4a23a}
 </style>
 </head>
 <body>
@@ -525,6 +529,7 @@ function renderStudy(){
       <div class="pbar"><div class="pfill" style="width:${pct}%"></div></div>
     </div>
     <div class="scorepill"><span class="d">✓ ${correct}</span><span class="w">✕ ${done-correct}</span></div>
+    <button class="ghostbtn endq" onclick="endQuiz()">Bitir →</button>
   </div></div>
 
   <div class="wrap">
@@ -542,7 +547,7 @@ function renderStudy(){
       <button class="navbtn" ${i===0?'disabled':''} onclick="studyNav(-1)">← Önceki</button>
       ${i<qs.length-1
         ? `<button class="navbtn next" onclick="studyNav(1)">Sonraki →</button>`
-        : `<button class="navbtn next" onclick="go('home')">Bitir ✓</button>`}
+        : `<button class="navbtn next" onclick="endQuiz()">Bitir ✓</button>`}
     </div>
   </div>`;
 }
@@ -789,14 +794,15 @@ function renderResults(){
 
     <div class="navrow" style="margin-top:24px">
       <button class="navbtn" onclick="go('home')">← Ana sayfa</button>
+      ${wrong?`<button class="navbtn" onclick="retryWrong()">Yanlışları tekrar çöz (${wrong})</button>`:''}
       <button class="navbtn next" onclick="startSim()">Yeni simülasyon ↻</button>
     </div>
   </div>`;
 }
-function setReview(r){S.review=r;renderResults();window.scrollTo({top:document.querySelector('.reviewbtns').offsetTop-70,behavior:'auto'});}
+function setReview(r){S.review=r;render();window.scrollTo({top:document.querySelector('.reviewbtns').offsetTop-70,behavior:'auto'});}
 
 /* ============ BU SENE FINAL SORULARI ============ */
-function startFinal(){ go('final',{qs:FINAL2024.slice(),i:0,ans:{},rev:{}}); }
+function startFinal(){ go('final',{qs:FINAL2024.slice(),i:0,ans:{},rev:{},label:'Bu Sene Final'}); }
 function renderFinal(){
   const {qs,i,ans,rev}=S;
   const q=qs[i];
@@ -842,6 +848,7 @@ function renderFinal(){
       <div class="pbar"><div class="pfill" style="width:${pct}%"></div></div>
     </div>
     <div class="scorepill"><span class="d">✓ ${correct}</span><span class="w">✕ ${done-correct}</span></div>
+    <button class="ghostbtn endq" onclick="endQuiz()">Bitir →</button>
   </div></div>
 
   <div class="wrap">
@@ -858,7 +865,7 @@ function renderFinal(){
       <button class="navbtn" ${i===0?'disabled':''} onclick="finalNav(-1)">← Önceki</button>
       ${i<total-1
         ? `<button class="navbtn next" onclick="finalNav(1)">Sonraki →</button>`
-        : `<button class="navbtn next" onclick="go('home')">Bitir ✓</button>`}
+        : `<button class="navbtn next" onclick="endQuiz()">Bitir ✓</button>`}
     </div>
   </div>`;
 }
@@ -979,6 +986,73 @@ function renderSearch(){
   doSearch(S.query);
 }
 
+/* ============ TEST SONUÇ EKRANI (study / bütün sorular / final) ============ */
+function endQuiz(){ go('quizres',{qs:S.qs,ans:S.ans,label:S.label||'Serbest çalışma'}); }
+function retryWrong(){
+  const wrong=S.qs.filter((q,idx)=>q.o&&S.ans[idx]!==undefined&&S.ans[idx]!==q.c);
+  if(!wrong.length){return;}
+  go('study',{qs:shuffle(wrong),i:0,ans:{},label:(S.label?S.label+' · ':'')+'yanlışlar'});
+}
+function renderQuizRes(){
+  const {qs,ans,label}=S;
+  let correct=0,wrong=0,blank=0; const bySub={};
+  qs.forEach((q,idx)=>{
+    if(!q.o)return;                 // flashcard/açık kart puanlamaya girmez
+    const p=ans[idx];
+    const sub=bySub[q.s]||(bySub[q.s]={c:0,t:0}); sub.t++;
+    if(p===undefined)blank++; else if(p===q.c){correct++;sub.c++;} else wrong++;
+  });
+  const total=correct+wrong+blank;
+  const pct=total?Math.round(correct/total*100):0;
+  if(S.review===undefined)S.review='wrong';
+
+  let subs=Object.keys(bySub).sort((a,b)=>{const ia=SUBJECT_ORDER.indexOf(a),ib=SUBJECT_ORDER.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);});
+  let rows=subs.map(s=>{const {c,t}=bySub[s];const p=Math.round(c/t*100);const fc=p>=60?'':(p>=40?'low':'bad');
+    return `<div class="strow"><span class="nm">${esc(s)}</span><span class="track"><span class="fill ${fc}" style="width:${p}%"></span></span><span class="sc">${c}/${t} · %${p}</span></div>`;}).join('');
+
+  const list=qs.map((q,idx)=>({q,idx})).filter(({q,idx})=>{
+    if(!q.o)return false;
+    const p=ans[idx];
+    if(S.review==='wrong')return p!==undefined&&p!==q.c;
+    if(S.review==='blank')return p===undefined;
+    return true;
+  });
+  let reviewHtml='';
+  if(!list.length)reviewHtml='<p style="color:var(--muted);font-size:.9rem">Bu kategoride soru yok.</p>';
+  list.forEach(({q,idx})=>{
+    const p=ans[idx];
+    const status=p===undefined?'<span class="rstatus bos">Boş</span>':p===q.c?'<span class="rstatus ok">Doğru</span>':'<span class="rstatus no">Yanlış</span>';
+    let os=Object.keys(q.o).map(L=>{let cls='ro';if(L===q.c)cls+=' c';else if(L===p)cls+=' x';const tail=L===q.c?' ✓':(L===p?' ✕':'');return `<div class="${cls}"><span class="l">${L}</span><span>${esc(q.o[L])}${tail}</span></div>`;}).join('');
+    const e=q.e?`<div class="rexp"><b>Püf:</b> ${esc(q.e)}</div>`:'';
+    const nt=q.note?`<div class="note" style="margin-top:8px"><span class="ni">Not:</span><span>${esc(q.note)}</span></div>`:'';
+    reviewHtml+=`<div class="rcard">${status}<p class="rq"><span class="mono" style="color:var(--muted)">[${q.k}·${q.n}] ${esc(q.s)} · ${kurulName(q.k)}</span><br>${esc(q.q)}</p>${os}${e}${nt}</div>`;
+  });
+
+  app.innerHTML=`
+  <div class="wrap">
+    <div class="resulthero">
+      <div class="big">${correct}<small> / ${total} doğru</small></div>
+      <div class="pts">%${pct} · ${esc(label||'Test')}</div>
+      <div class="meta">
+        <div><b>${correct}</b><span>doğru</span></div>
+        <div><b>${wrong}</b><span>yanlış</span></div>
+        <div><b>${blank}</b><span>boş</span></div>
+      </div>
+    </div>
+    ${rows?`<h3 class="sectiontitle">Ders bazlı sonuç</h3><div class="subjtable">${rows}</div>`:''}
+    <div class="reviewbtns">
+      <button class="toggle-r ${S.review==='wrong'?'on':''}" onclick="setReview('wrong')">Yanlışlar (${wrong})</button>
+      <button class="toggle-r ${S.review==='blank'?'on':''}" onclick="setReview('blank')">Boşlar (${blank})</button>
+      <button class="toggle-r ${S.review==='all'?'on':''}" onclick="setReview('all')">Tümü</button>
+    </div>
+    <div>${reviewHtml}</div>
+    <div class="navrow" style="margin-top:24px">
+      <button class="navbtn" onclick="go('home')">← Ana sayfa</button>
+      ${wrong?`<button class="navbtn next" onclick="retryWrong()">Yanlışları tekrar çöz (${wrong})</button>`:''}
+    </div>
+  </div>`;
+}
+
 /* ---- dispatch ---- */
 function render(){
   switch(S.screen){
@@ -987,6 +1061,7 @@ function render(){
     case 'cards-setup':return renderCardsSetup();
     case 'cards':return renderCards();
     case 'search':return renderSearch();
+    case 'quizres':return renderQuizRes();
     case 'study-setup':return renderStudySetup();
     case 'study':return renderStudy();
     case 'sim-setup':return renderSimSetup();
